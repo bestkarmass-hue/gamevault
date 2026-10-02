@@ -235,6 +235,6 @@ app.patch("/api/admin/listings/:id",auth,admin,(req,res)=>{
 
 app.get("/api/admin/logs",auth,admin,(req,res)=>res.json({logs:db.prepare("SELECT a.*,u.email FROM audit_logs a LEFT JOIN users u ON u.id=a.user_id ORDER BY a.created_at DESC LIMIT 200").all()}));
 
-app.get("/{*splat}",(req,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
+app.get("/{*splat}",(req,res)=>res.sendFile(path.join(__dirname,"index.html")));
 
 app.listen(PORT,()=>console.log(`GameVault running on http://localhost:${PORT}`));
