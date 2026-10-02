@@ -38,4 +38,242 @@ h1{font-size:54px;line-height:1;letter-spacing:-3px;margin:16px 0}.purple{color:
 .table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:12px;border-bottom:1px solid var(--line);font-size:13px}
 .status{font-size:11px;padding:4px 7px;border-radius:99px;background:#152e29;color:#75e5c5}
 .modal{display:none;position:fixed;inset:0;background:#000b;z-index:20;align-items:center;justify-content:center;padding:18px}
-.modal.on{display:flex}.modalbox{width:min(760px,100%);max-height:90vh;overflow:auto;background:#111827;border:1px solid var(--line
+.modal.on{display:flex}.modalbox{width:min(760px,100%);max-height:90vh;overflow:auto;background:#111827;border:1px solid var(--line);border-radius:18px;padding:22px}
+.close{float:right;background:none;border:0;color:#aaa;font-size:23px}
+.notice{padding:12px;border:1px solid #3a315d;background:#18132b;border-radius:10px;color:#c5bbf4;margin:12px 0}
+footer{padding:35px 0;color:var(--muted);border-top:1px solid var(--line);margin-top:35px}
+@media(max-width:850px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.links{display:none}.stats{grid-template-columns:1fr 1fr}}
+@media(max-width:550px){.grid{grid-template-columns:1fr}h1{font-size:42px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="wrap" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div class="logo">GAME<i>VAULT</i></div>
+    <div class="links">
+      <span onclick="go('market')">Pazar</span>
+      <span onclick="go('valuation')">Değerleme</span>
+      <span onclick="openPanel()">Panel</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="authBtn" class="btn" onclick="openAuth()">Giriş Yap</button>
+      <button class="btn primary" onclick="openSell()">+ İlan Ver</button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+<section class="hero">
+  <div>
+    <span class="pill">● V2 · Akıllı Pazar Motoru</span>
+    <h1>Oyun hesabının<br><span class="purple">gerçek değerini</span> gör.</h1>
+    <p class="lead">İlanları sadece listelemiyoruz. Envanter, nadirlik, piyasa fiyatı ve satıcı güven sinyallerini birleştirerek hesapları karşılaştırılabilir hale getiriyoruz.</p>
+    <div class="search"><input id="q" placeholder="PUBG Mobile, Valorant, CS2..."><button class="btn primary" onclick="doSearch()">Ara</button></div>
+  </div>
+  <div class="box">
+    <div class="muted">Canlı pazar</div>
+    <div class="metric"><span>Aktif ilan</span><b id="countMetric">—</b></div>
+    <div class="metric"><span>Ortalama fiyat</span><b id="avgMetric">—</b></div>
+    <div class="metric"><span>Veritabanı</span><b class="green">CANLI</b></div>
+  </div>
+</section>
+
+<section class="section" id="market">
+  <div class="head"><div><div class="muted">PAZAR</div><h2>Akıllı ilan keşfi</h2></div><button class="btn" onclick="reset()">Sıfırla</button></div>
+  <div class="filters">
+    <select id="game" onchange="loadListings()"><option value="">Tüm oyunlar</option><option>PUBG Mobile</option><option>Valorant</option><option>CS2</option><option>Fortnite</option></select>
+    <select id="sort" onchange="loadListings()"><option value="new">Yeni</option><option value="price_asc">En ucuz</option><option value="price_desc">En pahalı</option></select>
+    <input id="filter" oninput="loadListings()" placeholder="İlan ara...">
+  </div>
+  <div class="grid" id="cards"></div>
+</section>
+
+<section class="section" id="valuation">
+  <div class="head"><div><div class="muted">DEĞERLEME MOTORU</div><h2>Hesabını analiz et</h2></div></div>
+  <div class="box">
+    <div class="stats">
+      <div class="stat">Oyun<select class="field" id="vg" style="width:100%;margin-top:8px"><option>PUBG Mobile</option><option>Valorant</option><option>CS2</option></select></div>
+      <div class="stat">Seviye<input class="field" id="vl" type="number" value="70" style="width:100%;margin-top:8px"></div>
+      <div class="stat">Nadir eşya<input class="field" id="vr" type="number" value="6" style="width:100%;margin-top:8px"></div>
+      <div class="stat">Koleksiyon<input class="field" id="vc" type="number" value="120" style="width:100%;margin-top:8px"></div>
+    </div>
+    <button class="btn primary" style="margin-top:15px" onclick="valueAccount()">Değeri Hesapla</button>
+    <div id="result"></div>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap">GAMEVAULT V2 · Ürün prototipi. Gerçek ödeme, emanet ve hesap devri için ilgili oyunların kuralları, sağlayıcı şartları ve yürürlükteki mevzuat ayrıca uygulanmalıdır.</div></footer>
+
+<div class="modal" id="modal"><div class="modalbox"><button class="close" onclick="closeM()">×</button><div id="content"></div></div></div>
+
+<script>
+let token=localStorage.getItem("gv_token")||"";
+let currentUser=null;
+const demo=[
+ {id:"d1",game:"PUBG Mobile",title:"Mythic Collector · 4 X-Gun",price:8750,level:"72",region:"TR",description:"Demo ilan",seller:"NovaTR",trust:94},
+ {id:"d2",game:"Valorant",title:"Oni + Prime Premium",price:4200,level:"188",region:"EU",description:"Demo ilan",seller:"VexMarket",trust:91},
+ {id:"d3",game:"CS2",title:"2 Knife · 11 Skin Inventory",price:12600,level:"Prime",region:"Global",description:"Demo ilan",seller:"FloatLab",trust:97}
+];
+
+async function api(url,opts={}) {
+  opts.headers=Object.assign({"Content-Type":"application/json"},opts.headers||{});
+  if(token) opts.headers.Authorization="Bearer "+token;
+  const r=await fetch(url,opts);
+  let data={}; try{data=await r.json()}catch{}
+  if(!r.ok) throw new Error(data.error||"İşlem başarısız");
+  return data;
+}
+function esc(v){return String(v??"").replace(/[&<>\"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+
+async function loadMe(){
+  if(!token){currentUser=null;updateAuth();return}
+  try{currentUser=(await api("/api/me")).user;updateAuth()}
+  catch{token="";localStorage.removeItem("gv_token");currentUser=null;updateAuth()}
+}
+function updateAuth(){
+  authBtn.textContent=currentUser?("👤 "+currentUser.name):"Giriş Yap";
+}
+
+async function loadListings(){
+  const params=new URLSearchParams();
+  if(filter.value.trim())params.set("q",filter.value.trim());
+  if(game.value)params.set("game",game.value);
+  params.set("sort",sort.value);
+  try{
+    const data=await api("/api/listings?"+params.toString());
+    const list=data.listings||[];
+    countMetric.textContent=list.length.toLocaleString("tr-TR");
+    avgMetric.textContent=list.length?"₺"+Math.round(list.reduce((a,x)=>a+Number(x.price),0)/list.length).toLocaleString("tr-TR"):"₺0";
+    renderListings(list.length?list:demo);
+  }catch{
+    renderListings(demo);
+    countMetric.textContent="Demo";
+    avgMetric.textContent="—";
+  }
+}
+function renderListings(list){
+  cards.innerHTML=list.map(x=>`
+    <article class="card">
+      <div class="cover">${esc(x.game)}</div>
+      <div class="body">
+        <div class="small">${esc(x.game)}</div>
+        <div class="title">${esc(x.title)}</div>
+        <div class="tags">
+          <span class="tag">${x.level?"Lv. "+esc(x.level):"Seviye belirtilmedi"}</span>
+          <span class="tag">${esc(x.region||"Global")}</span>
+        </div>
+        <div class="row"><div class="price">₺${Number(x.price).toLocaleString("tr-TR")}</div><span class="green">${Number(x.trust||0)}/100</span></div>
+        <div class="muted" style="margin:8px 0;font-size:12px">Satıcı: ${esc(x.seller||"Demo")}</div>
+        <button class="btn primary" style="width:100%" onclick='detail(${JSON.stringify(x).replace(/</g,"\\u003c")})'>İncele & Teklif Ver</button>
+      </div>
+    </article>`).join("")||"<p class=muted>Sonuç bulunamadı.</p>";
+}
+function detail(x){
+  const real=typeof x.id==="number";
+  content.innerHTML=`
+    <div class=small>${esc(x.game)}</div><h2>${esc(x.title)}</h2>
+    <p class=muted>${esc(x.description||"Açıklama yok.")}</p>
+    <div class=stats>
+      <div class=stat>Fiyat<b>₺${Number(x.price).toLocaleString("tr-TR")}</b></div>
+      <div class=stat>Seviye<b>${esc(x.level||"—")}</b></div>
+      <div class=stat>Satıcı<b>${esc(x.seller||"—")}</b></div>
+      <div class=stat>Güven<b>${Number(x.trust||0)}/100</b></div>
+    </div>
+    ${real?`<div class=notice>Teklif göndermek için hesabına giriş yapmış olman gerekir.</div>
+    <label>Teklifin (₺)</label>
+    <input class=field id=offer style="width:100%;margin-top:7px" value="${Number(x.price)}">
+    <input class=field id=offerNote style="width:100%;margin-top:7px" placeholder="Teklif notu (opsiyonel)">
+    <button class="btn primary" style="width:100%;margin-top:12px" onclick="sendOffer(${x.id})">Teklif Gönder</button>`:
+    `<div class=notice>Bu ekrandaki ilan demo verisidir. Gerçek ilanlar artık veritabanından geliyor.</div>`}`;
+  modal.classList.add("on");
+}
+async function sendOffer(id){
+  if(!currentUser){closeM();openAuth();return}
+  try{await api("/api/offers",{method:"POST",body:JSON.stringify({listingId:id,amount:Number(offer.value),note:offerNote.value})});alert("Teklif gönderildi.");closeM()}
+  catch(e){alert(e.message)}
+}
+
+function openAuth(){
+  content.innerHTML=`
+  <h2>GameVault hesabı</h2>
+  <div class=notice>İlan vermek ve teklif göndermek için giriş yap veya ücretsiz hesap oluştur.</div>
+  <div style="display:grid;gap:8px">
+    <input class=field id=loginEmail placeholder="E-posta">
+    <input class=field id=loginPass type=password placeholder="Şifre">
+    <button class="btn primary" onclick="login()">Giriş Yap</button>
+    <hr style="width:100%;border-color:#29344a">
+    <input class=field id=regName placeholder="Adın">
+    <input class=field id=regEmail placeholder="Kayıt e-postası">
+    <input class=field id=regPass type=password placeholder="Şifre (en az 8 karakter)">
+    <button class=btn onclick="register()">Yeni Hesap Oluştur</button>
+  </div>`;
+  modal.classList.add("on");
+}
+async function login(){
+  try{const d=await api("/api/login",{method:"POST",body:JSON.stringify({email:loginEmail.value,password:loginPass.value})});token=d.token;localStorage.setItem("gv_token",token);currentUser=d.user;updateAuth();alert("Giriş başarılı.");closeM();loadListings()}
+  catch(e){alert(e.message)}
+}
+async function register(){
+  try{const d=await api("/api/register",{method:"POST",body:JSON.stringify({name:regName.value,email:regEmail.value,password:regPass.value})});token=d.token;localStorage.setItem("gv_token",token);currentUser=d.user;updateAuth();alert("Hesap oluşturuldu.");closeM();loadListings()}
+  catch(e){alert(e.message)}
+}
+function openSell(){
+  if(!currentUser){openAuth();return}
+  content.innerHTML=`
+  <h2>Yeni ilan</h2>
+  <p class=muted>İlan bilgilerini doldur. Kaydettiğinde ilan veritabanına eklenir.</p>
+  <div style="display:grid;gap:8px">
+    <select class=field id=sGame><option>PUBG Mobile</option><option>Valorant</option><option>CS2</option><option>Fortnite</option></select>
+    <input class=field id=sTitle placeholder="İlan başlığı">
+    <input class=field id=sPrice type=number min=1 placeholder="İstenen fiyat (₺)">
+    <input class=field id=sLevel placeholder="Seviye / hesap bilgisi">
+    <select class=field id=sRegion><option>Global</option><option>TR</option><option>EU</option><option>NA</option></select>
+    <textarea class=field id=sDesc style="width:100%;height:120px" placeholder="Açıklama"></textarea>
+    <button class="btn primary" onclick="createListing()">İlanı Yayınla</button>
+  </div>`;
+  modal.classList.add("on");
+}
+async function createListing(){
+  try{
+    await api("/api/listings",{method:"POST",body:JSON.stringify({
+      game:sGame.value,title:sTitle.value,price:Number(sPrice.value),level:sLevel.value,region:sRegion.value,description:sDesc.value
+    })});
+    alert("İlan yayınlandı.");
+    closeM();loadListings();
+  }catch(e){alert(e.message)}
+}
+async function openPanel(){
+  if(!currentUser){openAuth();return}
+  try{
+    const [a,b]=await Promise.all([api("/api/me/listings"),api("/api/me/offers")]);
+    content.innerHTML=`
+      <h2>Satıcı Paneli</h2>
+      <div class=stats>
+        <div class=stat>İlanlar<b>${a.listings.length}</b></div>
+        <div class=stat>Teklifler<b>${b.offers.length}</b></div>
+        <div class=stat>Hesap<b>${esc(currentUser.name)}</b></div>
+        <div class=stat>Güven<b>${Number(currentUser.trust||0)}/100</b></div>
+      </div>
+      <h3>İlanlarım</h3>
+      ${a.listings.length?`<table class=table><tr><th>İlan</th><th>Fiyat</th><th>Durum</th></tr>${a.listings.map(x=>`<tr><td>${esc(x.title)}</td><td>₺${Number(x.price).toLocaleString("tr-TR")}</td><td><span class=status>${esc(x.status)}</span></td></tr>`).join("")}</table>`:"<p class=muted>Henüz ilan vermedin.</p>"}
+      <h3>Tekliflerim</h3>
+      ${b.offers.length?`<table class=table><tr><th>İlan</th><th>Teklif</th><th>Durum</th></tr>${b.offers.map(x=>`<tr><td>${esc(x.title)}</td><td>₺${Number(x.amount).toLocaleString("tr-TR")}</td><td><span class=status>${esc(x.status)}</span></td></tr>`).join("")}</table>`:"<p class=muted>Henüz teklif vermedin.</p>"}
+      <button class="btn" style="margin-top:15px" onclick="logout()">Çıkış Yap</button>`;
+    modal.classList.add("on");
+  }catch(e){alert(e.message)}
+}
+function logout(){token="";currentUser=null;localStorage.removeItem("gv_token");updateAuth();closeM();loadListings()}
+function valueAccount(){
+  let l=+vl.value||0,r=+vr.value||0,c=+vc.value||0,base=vg.value=="CS2"?900:vg.value=="Valorant"?500:700;
+  let v=Math.round(base+l*18+r*620+c*9),score=Math.min(99,Math.round(55+l*.25+r*2+c*.08));
+  result.innerHTML=`<div class=box style="margin-top:16px"><div class=muted>Tahmini piyasa aralığı</div><h2>₺${Math.round(v*.9).toLocaleString("tr-TR")} — ₺${Math.round(v*1.1).toLocaleString("tr-TR")}</h2><div class=muted>Hesap skoru ${score}/100</div><div style="height:10px;background:#202a3b;border-radius:99px;overflow:hidden;margin:8px 0 14px"><span style="display:block;height:100%;width:${score}%;background:linear-gradient(90deg,#00c89b,#7d5cff)"></span></div><small class=muted>Bu prototipte örnekleme amaçlı formül kullanılıyor.</small></div>`;
+}
+function doSearch(){filter.value=q.value;go("market");loadListings()}
+function reset(){game.value="";filter.value="";sort.value="new";loadListings()}
+function go(id){document.getElementById(id).scrollIntoView({behavior:"smooth"})}
+function closeM(){modal.classList.remove("on")}
+loadMe();loadListings();
+</script>
+</body>
+</html>
