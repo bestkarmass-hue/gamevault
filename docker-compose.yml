@@ -1,0 +1,14 @@
+services:
+  gamevault:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      JWT_SECRET: CHANGE_THIS_TO_A_LONG_RANDOM_SECRET
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: CHANGE_THIS_IMMEDIATELY
+      CORS_ORIGIN: "*"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
