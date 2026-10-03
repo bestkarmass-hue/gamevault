@@ -178,6 +178,55 @@ app.post("/api/offers",auth,(req,res)=>{
 
 app.get("/api/me/listings",auth,(req,res)=>res.json({listings:db.prepare("SELECT * FROM listings WHERE user_id=? ORDER BY created_at DESC").all(req.user.id)}));
 app.get("/api/me/offers",auth,(req,res)=>res.json({offers:db.prepare(`SELECT o.*,l.title,l.game FROM offers o JOIN listings l ON l.id=o.listing_id WHERE o.buyer_id=? ORDER BY o.created_at DESC`).all(req.user.id)}));
+app.get("/api/me/received-offers",auth,(req,res)=>{
+  const offers=db.prepare(`
+    SELECT o.*,l.title,l.game,u.name buyer_name,u.email buyer_email
+    FROM offers o
+    JOIN listings l ON l.id=o.listing_id
+    JOIN users u ON u.id=o.buyer_id
+    WHERE l.user_id=?
+    ORDER BY o.created_at DESC
+  `).all(req.user.id);
+
+  res.json({offers});
+});
+
+app.patch("/api/offers/:id/status",auth,(req,res)=>{
+  const {status}=req.body||{};
+
+  if(!["accepted","rejected"].includes(status)){
+    return res.status(400).json({error:"Geçersiz teklif durumu"});
+  }
+
+  const offer=db.prepare(`
+    SELECT o.*,l.user_id seller_id
+    FROM offers o
+    JOIN listings l ON l.id=o.listing_id
+    WHERE o.id=?
+  `).get(req.params.id);
+
+  if(!offer){
+    return res.status(404).json({error:"Teklif bulunamadı"});
+  }
+
+  if(offer.seller_id!==req.user.id){
+    return res.status(403).json({error:"Bu teklifi yönetme yetkin yok"});
+  }
+
+  if(offer.status!=="pending"){
+    return res.status(400).json({error:"Bu teklif zaten sonuçlandırılmış"});
+  }
+
+  db.prepare("UPDATE offers SET status=? WHERE id=?").run(status,req.params.id);
+
+  if(status==="accepted"){
+    db.prepare("UPDATE listings SET status='sold' WHERE id=?").run(offer.listing_id);
+  }
+
+  log(req.user.id,"offer_status_changed",`offer=${offer.id};status=${status}`);
+
+  res.json({ok:true,status});
+});
 
 app.post("/api/favorites/:listingId",auth,(req,res)=>{
   const id=Number(req.params.listingId);
