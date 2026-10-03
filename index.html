@@ -246,7 +246,11 @@ async function createListing(){
 async function openPanel(){
   if(!currentUser){openAuth();return}
   try{
-    const [a,b]=await Promise.all([api("/api/me/listings"),api("/api/me/offers")]);
+const [a,b,c]=await Promise.all([
+  api("/api/me/listings"),
+  api("/api/me/offers"),
+  api("/api/me/received-offers")
+]);  
     content.innerHTML=`
       <h2>Satıcı Paneli</h2>
       <div class=stats>
@@ -259,9 +263,44 @@ async function openPanel(){
       ${a.listings.length?`<table class=table><tr><th>İlan</th><th>Fiyat</th><th>Durum</th></tr>${a.listings.map(x=>`<tr><td>${esc(x.title)}</td><td>₺${Number(x.price).toLocaleString("tr-TR")}</td><td><span class=status>${esc(x.status)}</span></td></tr>`).join("")}</table>`:"<p class=muted>Henüz ilan vermedin.</p>"}
       <h3>Tekliflerim</h3>
       ${b.offers.length?`<table class=table><tr><th>İlan</th><th>Teklif</th><th>Durum</th></tr>${b.offers.map(x=>`<tr><td>${esc(x.title)}</td><td>₺${Number(x.amount).toLocaleString("tr-TR")}</td><td><span class=status>${esc(x.status)}</span></td></tr>`).join("")}</table>`:"<p class=muted>Henüz teklif vermedin.</p>"}
+      <h3>Gelen Teklifler</h3>
+${c.offers.length?`
+<table class=table>
+<tr>
+<th>İlan</th>
+<th>Alıcı</th>
+<th>Teklif</th>
+<th>Durum</th>
+<th>İşlem</th>
+</tr>
+${c.offers.map(x=>`
+<tr>
+<td>${esc(x.title)}</td>
+<td>${esc(x.buyer_name)}</td>
+<td>₺${Number(x.amount).toLocaleString("tr-TR")}</td>
+<td><span class=status>${esc(x.status)}</span></td>
+<td>
+${x.status==="pending"?`
+<button class="btn" onclick="offerStatus(${x.id},'accepted')">Kabul Et</button>
+<button class="btn" onclick="offerStatus(${x.id},'rejected')">Reddet</button>
+`:"—"}
+</td>
+</tr>`).join("")}
+</table>`:"<p class=muted>Henüz gelen teklif yok.</p>"}
       <button class="btn" style="margin-top:15px" onclick="logout()">Çıkış Yap</button>`;
     modal.classList.add("on");
   }catch(e){alert(e.message)}
+}async function offerStatus(id,status){
+  try{
+    await api("/api/offers/"+id+"/status",{
+      method:"PATCH",
+      body:JSON.stringify({status})
+    });
+    alert(status==="accepted"?"Teklif kabul edildi.":"Teklif reddedildi.");
+    openPanel();
+  }catch(e){
+    alert(e.message);
+  }
 }
 function logout(){token="";currentUser=null;localStorage.removeItem("gv_token");updateAuth();closeM();loadListings()}
 function valueAccount(){
